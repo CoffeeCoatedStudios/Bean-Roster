@@ -1,0 +1,373 @@
+<!-- roster_pro_share.html -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Coffee Rostertitle>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background: #f4f4f9;
+      padding: 30px;
+      color: #333;
+    }
+    h1 { text-align: center; }
+    .form {
+      display: flex;
+      justify-content: center;
+      gap: 10px;
+      margin-bottom: 20px;
+      flex-wrap: wrap;
+    }
+    input, button {
+      padding: 10px;
+      font-size: 16px;
+      border: 1px solid #ccc;
+      border-radius: 5px;
+    }
+    button {
+      cursor: pointer;
+      background-color: #4CAF50;
+      color: white;
+      border: none;
+    }
+    button:hover { background-color: #45a049; }
+    ul {
+      list-style-type: none;
+      padding: 0;
+      max-width: 650px;
+      margin: auto;
+    }
+    li {
+      background: white;
+      padding: 12px;
+      margin-top: 8px;
+      border-radius: 8px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+    }
+    .member-info { display: flex; flex-direction: column; }
+    .remove-btn {
+      background-color: #e74c3c;
+      color: white;
+      border: none;
+      border-radius: 3px;
+      cursor: pointer;
+      padding: 6px 10px;
+    }
+    .remove-btn:hover { background-color: #c0392b; }
+    .clock-btn {
+      background-color: #3498db;
+      color: white;
+      border: none;
+      border-radius: 3px;
+      cursor: pointer;
+      padding: 6px 10px;
+      margin-left: 5px;
+    }
+    .clock-btn:hover { background-color: #2980b9; }
+    .save-btn, .export-btn, .share-btn {
+      display: block;
+      margin: 10px auto;
+      width: 250px;
+      font-weight: bold;
+    }
+    .save-btn { background-color: #f39c12; }
+    .save-btn:hover { background-color: #e67e22; }
+    .export-btn { background-color: #3498db; }
+    .export-btn:hover { background-color: #2980b9; }
+    .share-btn { background-color: #8e44ad; }
+    .share-btn:hover { background-color: #71368a; }
+    #shareLink {
+      display: none;
+      text-align: center;
+      background: #ecf0f1;
+      padding: 10px;
+      border-radius: 6px;
+      margin-top: 15px;
+      font-size: 14px;
+      word-break: break-all;
+    }
+    .read-only {
+      background: #ffeeba;
+      border: 1px solid #f0ad4e;
+      padding: 8px;
+      border-radius: 5px;
+      margin-bottom: 15px;
+      text-align: center;
+    }
+  </style>
+</head>
+<body>
+  <h1>Bean Roster</h1>
+  <div id="modeBanner"></div>
+
+
+  <div class="form" id="inputForm">
+    <input type="text" id="nameInput" placeholder="Name">
+    <input type="text" id="roleInput" placeholder="Role (e.g. Manager)">
+    <button onclick="addMember()">Add</button>
+  </div>
+
+
+  <ul id="rosterList"></ul>
+
+
+  <button class="save-btn" onclick="saveRoster()">💾 Save Roster</button>
+  <button class="export-btn" onclick="exportCSV()">⬇️ Export CSV</button>
+  <button class="share-btn" onclick="generateShareLink()">🔗 Generate Share Links</button>
+  <button class="share-btn" onclick="refreshRoster()">🔄 Refresh Roster</button>
+
+
+  <!-- Clock log, only visible to editable users -->
+  <h2 id="clockLogTitle" style="text-align:center; margin-top:30px;">⏱ Clock Log</h2>
+  <ul id="clockLog" style="max-width:650px; margin:auto; list-style:none; padding:0;"></ul>
+
+
+  <div id="shareLink"></div>
+
+
+  <script>
+    const STORAGE_KEY = "teamRosterProClock";
+    const rosterList = document.getElementById("rosterList");
+    const modeBanner = document.getElementById("modeBanner");
+    const inputForm = document.getElementById("inputForm");
+    const clockLog = document.getElementById("clockLog");
+    const clockLogTitle = document.getElementById("clockLogTitle");
+
+
+    let roster = [];
+    let editable = false;
+
+
+    window.onload = () => {
+      const hash = window.location.hash;
+
+
+      if (hash.startsWith("#data=")) {
+        // Shared link mode
+        const parts = hash.replace("#data=", "").split("&edit=");
+        const data = decodeURIComponent(atob(parts[0]));
+        roster = JSON.parse(data);
+        editable = parts[1] === "true";
+        updateRoster();
+
+
+        modeBanner.innerHTML = editable
+          ? `<div class='read-only'>✏️ Shared roster — edit access granted</div>`
+          : `<div class='read-only'>👁 Viewing shared roster — editing limited</div>`;
+
+
+        // Hide local-only buttons
+        inputForm.style.display = editable ? "flex" : "none";
+        document.querySelector(".save-btn").style.display = "none";
+        document.querySelector(".export-btn").style.display = "none";
+        document.querySelectorAll(".share-btn").forEach(btn => btn.style.display = "none");
+
+
+        // Show clock log only if editable
+        if (editable) {
+          clockLog.style.display = "block";
+          clockLogTitle.style.display = "block";
+        } else {
+          clockLog.style.display = "none";
+          clockLogTitle.style.display = "none";
+        }
+
+
+      } else {
+        // Local mode
+        editable = true;
+        const saved = localStorage.getItem(STORAGE_KEY);
+        if (saved) roster = JSON.parse(saved);
+        updateRoster();
+        modeBanner.innerHTML = `<div class='read-only'>💾 Local mode — roster saved in your browser</div>`;
+
+
+        // Show log
+        clockLog.style.display = "block";
+        clockLogTitle.style.display = "block";
+      }
+    };
+
+
+    function saveRoster() {
+      if (editable && !window.location.hash.startsWith("#data=")) {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(roster));
+        alert("✅ Roster saved locally!");
+      }
+    }
+
+
+    function addMember() {
+      if (!editable) return alert("View-only mode: cannot add members.");
+      const name = document.getElementById("nameInput").value.trim();
+      const role = document.getElementById("roleInput").value.trim();
+      if (!name) return alert("Please enter a name.");
+
+
+      roster.push({ name, role, clockIn: null, clockOut: null });
+      updateRoster();
+      saveRoster();
+      document.getElementById("nameInput").value = "";
+      document.getElementById("roleInput").value = "";
+    }
+
+
+    function clockIn(index) {
+      const now = new Date().toLocaleString();
+      roster[index].clockIn = now;
+      roster[index].clockOut = null;
+      if (editable) addLog(`${roster[index].name} clocked IN at ${now}`);
+      updateRoster();
+      saveRoster();
+    }
+
+
+    function clockOut(index) {
+      const now = new Date().toLocaleString();
+      roster[index].clockOut = now;
+      if (editable) addLog(`${roster[index].name} clocked OUT at ${now}`);
+      updateRoster();
+      saveRoster();
+    }
+
+
+    function addLog(message) {
+      const li = document.createElement("li");
+      li.textContent = message;
+      li.style.background = "#fff";
+      li.style.padding = "8px";
+      li.style.marginTop = "5px";
+      li.style.borderRadius = "5px";
+      li.style.boxShadow = "0 1px 2px rgba(0,0,0,0.1)";
+      clockLog.prepend(li);
+    }
+
+
+    function removeMember(index) {
+      if (!editable) return alert("View-only mode: cannot remove members.");
+      roster.splice(index, 1);
+      updateRoster();
+      saveRoster();
+    }
+
+
+    function updateRoster() {
+      rosterList.innerHTML = "";
+      roster.forEach((member, index) => {
+        const li = document.createElement("li");
+
+
+        const infoDiv = document.createElement("div");
+        infoDiv.classList.add("member-info");
+        infoDiv.innerHTML = `
+          <strong>${member.name}</strong>
+          <span>Role: ${member.role || "—"}</span>
+          <span>Clock In: ${member.clockIn || "—"}</span>
+          <span>Clock Out: ${member.clockOut || "—"}</span>
+        `;
+
+
+        const actionsDiv = document.createElement("div");
+
+
+        // Clock buttons: always available
+        const inBtn = document.createElement("button");
+        inBtn.textContent = "Clock In";
+        inBtn.classList.add("clock-btn");
+        inBtn.onclick = () => clockIn(index);
+
+
+        const outBtn = document.createElement("button");
+        outBtn.textContent = "Clock Out";
+        outBtn.classList.add("clock-btn");
+        outBtn.onclick = () => clockOut(index);
+
+
+        actionsDiv.appendChild(inBtn);
+        actionsDiv.appendChild(outBtn);
+
+
+        // Remove button: only for editable/local mode
+        if (editable && !window.location.hash.startsWith("#data=")) {
+          const removeBtn = document.createElement("button");
+          removeBtn.textContent = "Remove";
+          removeBtn.classList.add("remove-btn");
+          removeBtn.onclick = () => removeMember(index);
+          actionsDiv.appendChild(removeBtn);
+        }
+
+
+        li.appendChild(infoDiv);
+        li.appendChild(actionsDiv);
+        rosterList.appendChild(li);
+      });
+    }
+
+
+    function exportCSV() {
+      if (roster.length === 0) return alert("No members to export.");
+      let csv = "Name,Role,Clock In,Clock Out\n";
+      roster.forEach(member => {
+        csv += `${member.name},${member.role || ""},${member.clockIn || ""},${member.clockOut || ""}\n`;
+      });
+
+
+      const blob = new Blob([csv], { type: "text/csv" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = "roster.csv";
+      a.click();
+      URL.revokeObjectURL(url);
+    }
+
+
+    function generateShareLink() {
+      const encoded = btoa(encodeURIComponent(JSON.stringify(roster)));
+      const base = window.location.href.split("#")[0];
+      const viewLink = `${base}#data=${encoded}`;
+      const editLink = `${base}#data=${encoded}&edit=true`;
+
+
+      const shareBox = document.getElementById("shareLink");
+      shareBox.innerHTML = `
+        <p><strong>View Only:</strong> <a href="${viewLink}" target="_blank">${viewLink}</a></p>
+        <p><strong>Edit Access:</strong> <a href="${editLink}" target="_blank">${editLink}</a></p>
+      `;
+      shareBox.style.display = "block";
+
+
+      navigator.clipboard.writeText(editLink)
+        .then(() => alert("✅ Share links generated! Edit link copied to clipboard."))
+        .catch(() => alert("Links generated — copy manually below."));
+    }
+
+
+    function refreshRoster() {
+      const hash = window.location.hash;
+     
+      if (hash.startsWith("#data=")) {
+        const parts = hash.replace("#data=", "").split("&edit=");
+        const data = decodeURIComponent(atob(parts[0]));
+        roster = JSON.parse(data);
+        editable = parts[1] === "true";
+      } else {
+        const saved = localStorage.getItem(STORAGE_KEY);
+        if (saved) roster = JSON.parse(saved);
+      }
+
+
+      updateRoster();
+      alert("🔄 Roster refreshed!");
+    }
+  </script>
+</body>
+</html>
+
+
+

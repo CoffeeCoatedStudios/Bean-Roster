@@ -1,12 +1,14 @@
-<!-- roster_pro_share.html --><!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Coffee Roster</title>
+  <title>Bean Roster</title>
   <style>
-    body { font-family: Arial; background: #f4f4f9; padding: 30px; color: #333; }
-    h1 { text-align: center; }
+    body { font-family: Arial, sans-serif; background: #f4f4f9; padding: 30px; color: #333; }
+    header { display:flex; align-items:center; justify-content:center; margin-bottom:20px; }
+    header img { width:50px; height:50px; margin-right:15px; }
+    h1 { margin:0; }
     .form { display:flex; justify-content:center; gap:10px; margin-bottom:20px; flex-wrap:wrap; }
     input, button { padding:10px; font-size:16px; border:1px solid #ccc; border-radius:5px; }
     button { cursor:pointer; background:#4CAF50; color:white; border:none; }
@@ -30,7 +32,11 @@
   </style>
 </head>
 <body>
-  <h1>Bean Roster</h1>
+  <header>
+    <img src="data:image/png;base64,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" alt="Logo">
+    <h1>Bean Roster</h1>
+  </header>
+
   <div id="modeBanner"></div>
 
   <div class="form" id="inputForm">
@@ -52,10 +58,7 @@
   <div id="shareLink"></div>
 
   <script>
-    // --- Your JS code remains the same ---
-    // Just copy everything inside your <script> from your original file
+    // Copy your original JS here (from your previous roster)
   </script>
 </body>
 </html>
-
-
